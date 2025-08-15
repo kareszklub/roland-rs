@@ -12,7 +12,8 @@ use tokio_serial::{SerialPortBuilderExt, SerialStream};
 /// pico -> pi
 #[derive(Deserialize, Debug, Clone)]
 pub enum SerialData {
-    UltraSensor(u8),
+    /// measured distance in cm
+    UltraSensor(u16),
 }
 
 /// pi -> pico

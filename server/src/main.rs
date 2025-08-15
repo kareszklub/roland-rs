@@ -22,9 +22,9 @@ async fn main() {
 
     // blink example
     loop {
-        cmd_tx.send(SerialCMD::LED((255, 255, 255))).await.unwrap();
-        sleep(Duration::from_millis(200)).await;
-        cmd_tx.send(SerialCMD::LED((0, 0, 0))).await.unwrap();
-        sleep(Duration::from_millis(200)).await;
+        // cmd_tx.send(SerialCMD::LED((255, 255, 255))).await.unwrap();
+        // sleep(Duration::from_millis(200)).await;
+        // cmd_tx.send(SerialCMD::LED((0, 0, 0))).await.unwrap();
+        // sleep(Duration::from_millis(200)).await;
     }
 }

@@ -18,7 +18,8 @@ bind_interrupts!(pub struct Irqs {
 /// pico -> pi
 #[derive(Serialize, Debug)]
 pub enum SerialData {
-    UltraSensor(u8),
+    /// measured distance in cm
+    UltraSensor(u16),
 }
 
 /// pi -> pico
@@ -38,7 +39,7 @@ pub enum SerialCMD {
 pub static CMD: Channel<ThreadModeRawMutex, SerialCMD, 16> = Channel::new();
 
 /// channel for outgoing messages
-pub static DATA: Channel<ThreadModeRawMutex, SerialData, 4> = Channel::new();
+pub static DATA: Channel<ThreadModeRawMutex, SerialData, 16> = Channel::new();
 
 #[embassy_executor::task]
 async fn usb_task(mut usb: UsbDevice<'static, Driver<'static, USB>>) -> ! {
@@ -65,7 +66,6 @@ async fn usb_write_task(mut tx: Sender<'static, Driver<'static, USB>>) {
     loop {
         let data = DATA.receive().await;
         let _ = tx.write_packet(to_slice(&data, &mut buf).unwrap()).await;
-        Timer::after_secs(1).await;
     }
 }
 
