@@ -117,24 +117,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "bobot-rs"
-version = "0.1.0"
-dependencies = [
- "cortex-m-rt",
- "defmt-rtt",
- "embassy-executor",
- "embassy-rp",
- "embassy-sync",
- "embassy-time",
- "embassy-usb",
- "log",
- "panic-probe",
- "postcard",
- "serde",
- "static_cell",
-]
-
-[[package]]
 name = "bytemuck"
 version = "1.23.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1173,6 +1155,24 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0c6a884d2998352bb4daf0183589aec883f16a6da1f4dde84d8e2e9a5409a1ce"
 dependencies = [
  "bytemuck",
+]
+
+[[package]]
+name = "roland-uc"
+version = "0.1.0"
+dependencies = [
+ "cortex-m-rt",
+ "defmt-rtt",
+ "embassy-executor",
+ "embassy-rp",
+ "embassy-sync",
+ "embassy-time",
+ "embassy-usb",
+ "log",
+ "panic-probe",
+ "postcard",
+ "serde",
+ "static_cell",
 ]
 
 [[package]]

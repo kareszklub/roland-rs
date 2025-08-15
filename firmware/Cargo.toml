@@ -1,8 +1,7 @@
 [package]
 edition = "2021"
-name = "bobot-rs"
+name = "roland-uc"
 version = "0.1.0"
-
 
 [dependencies]
 embassy-sync = { version = "0.7.0", features = ["defmt"] }
