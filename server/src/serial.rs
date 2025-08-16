@@ -1,5 +1,5 @@
 use anyhow::anyhow;
-use log::{error, info};
+use log::{error, info, trace};
 use postcard::{from_bytes, to_stdvec};
 use serde::{Deserialize, Serialize};
 use tokio::{
@@ -82,7 +82,7 @@ async fn read_task(mut reader: ReadHalf<SerialStream>, data_tx: broadcast::Sende
                     if let Err(e) = data_tx.send(data.clone()) {
                         error!("Couldn't send data: {}", e);
                     } else {
-                        info!("Received: {:?}", data)
+                        trace!("Received: {:?}", data)
                     }
                 }
                 Err(e) => error!("Couldn't parse data({:?}): {}", &buf[..n], e),
@@ -101,7 +101,7 @@ async fn write_task(mut writer: WriteHalf<SerialStream>, mut cmd_rx: mpsc::Recei
         if let Err(e) = writer.write_all(&data).await {
             error!("Write error: {}", e);
         } else {
-            info!("Sent: {:?}", cmd);
+            trace!("Sent: {:?}", cmd);
         }
     }
 }
