@@ -9,6 +9,8 @@ use tokio::{
 };
 use tokio_serial::{SerialPortBuilderExt, SerialStream};
 
+use crate::hardware::Hardware;
+
 /// pico -> pi
 #[derive(Deserialize, Debug, Clone)]
 pub enum SerialData {
@@ -43,10 +45,13 @@ async fn find_pico_path() -> anyhow::Result<String> {
     Err(anyhow!("Pico not found"))
 }
 
-pub async fn init(
-    cmd_rx: mpsc::Receiver<SerialCMD>,
-    data_tx: broadcast::Sender<SerialData>,
-) -> anyhow::Result<()> {
+/// initialize serial communication with the Pico
+///
+/// returns a Hardware wrapper for interacting with it
+pub async fn init() -> anyhow::Result<Hardware> {
+    let (cmd_tx, cmd_rx) = mpsc::channel::<SerialCMD>(32);
+    let (data_tx, data_rx) = broadcast::channel::<SerialData>(32);
+
     let path = find_pico_path().await?;
     let port = tokio_serial::new(&path, 115200).open_native_async()?;
 
@@ -54,15 +59,14 @@ pub async fn init(
 
     let (reader, writer) = split(port);
 
-    tokio::spawn(async move {
-        read_task(reader, data_tx).await;
+    tokio::spawn(async {
+        tokio::select! {
+            _ = read_task(reader, data_tx) => {},
+            _ = write_task(writer, cmd_rx) => {},
+        }
     });
 
-    tokio::spawn(async move {
-        write_task(writer, cmd_rx).await;
-    });
-
-    Ok(())
+    Ok(Hardware::new(cmd_tx, data_rx))
 }
 
 async fn read_task(mut reader: ReadHalf<SerialStream>, data_tx: broadcast::Sender<SerialData>) {
