@@ -1,4 +1,4 @@
-use log::{debug, info};
+use log::info;
 use std::time::Duration;
 use tokio::time::sleep;
 use tokio_util::sync::CancellationToken;
@@ -30,7 +30,7 @@ async fn main() {
 
     {
         let token = token.clone();
-        let mut backend = backend.clone();
+        let backend = backend.clone();
         tokio::spawn(async move {
             let _ = tokio::signal::ctrl_c().await;
             info!("^C interrupt received, cleanup started");

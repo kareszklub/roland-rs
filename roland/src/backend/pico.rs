@@ -84,11 +84,14 @@ impl Pico {
     ///
     /// this should be called before terminating the program, in avoidance of some very serious
     /// consequences (RIP camera holder, you won't be forgotten)
-    pub async fn reset(&mut self) -> anyhow::Result<()> {
+    pub async fn reset(mut self) -> anyhow::Result<()> {
         self.set_buzzer(0).await?;
         self.set_led(0, 0, 0).await?;
         self.set_servo(0).await?;
         self.set_motor(0, 0).await?;
+
+        drop(self.cmd_tx);
+
         Ok(())
     }
 
