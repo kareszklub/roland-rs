@@ -11,11 +11,21 @@ use tokio_serial::{SerialPortBuilderExt, SerialStream};
 
 use crate::backend::Pico;
 
+#[derive(Deserialize, Debug, Clone)]
+pub enum TrackSensorID {
+    L1,
+    L2,
+    R1,
+    R2,
+}
+
 /// pico -> pi
 #[derive(Deserialize, Debug, Clone)]
 pub enum SerialData {
     /// measured distance in cm
     UltraSensor(u16),
+    /// sensor id and value
+    TrackSensor((TrackSensorID, bool)),
 }
 
 /// pi -> pico

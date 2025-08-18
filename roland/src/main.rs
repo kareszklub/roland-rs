@@ -16,8 +16,9 @@ async fn main() {
     loop {
         for v in [255, 0] {
             backend.pico.set_led(v, v, v).await.unwrap();
-            info!("Dist: {:?}", backend.pico.get_ultra().await);
-            sleep(Duration::from_millis(200)).await;
+            // info!("Dist: {:?}", backend.pico.get_ultra().await);
+            info!("Track: {:?}", backend.pico.get_track().await);
+            sleep(Duration::from_millis(50)).await;
         }
     }
 }

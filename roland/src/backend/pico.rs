@@ -3,10 +3,13 @@ use std::{sync::Arc, time::Instant};
 use log::error;
 use tokio::sync::{RwLock, broadcast, mpsc};
 
+use crate::backend::serial::TrackSensorID;
+
 use super::serial::{SerialCMD, SerialData};
 
 struct SensorData {
     ultra_sensor: Option<(u16, Instant)>,
+    track_sensor: [bool; 4],
 }
 
 #[derive(Clone)]
@@ -17,7 +20,10 @@ pub struct Pico {
 
 impl Pico {
     pub fn new(cmd_tx: mpsc::Sender<SerialCMD>, data_rx: broadcast::Receiver<SerialData>) -> Self {
-        let sensor_data = Arc::new(RwLock::new(SensorData { ultra_sensor: None }));
+        let sensor_data = Arc::new(RwLock::new(SensorData {
+            ultra_sensor: None,
+            track_sensor: [false; 4],
+        }));
 
         let sensor_data_clone = sensor_data.clone();
         tokio::spawn(async move {
@@ -44,6 +50,14 @@ impl Pico {
                         SerialData::UltraSensor(dist) => {
                             current.ultra_sensor = Some((dist, Instant::now()));
                         }
+                        SerialData::TrackSensor((id, val)) => {
+                            current.track_sensor[match id {
+                                TrackSensorID::L1 => 0,
+                                TrackSensorID::L2 => 1,
+                                TrackSensorID::R1 => 2,
+                                TrackSensorID::R2 => 3,
+                            }] = val;
+                        }
                     }
                 }
                 Err(e) => {
@@ -64,6 +78,10 @@ impl Pico {
         } else {
             Some(dist)
         }
+    }
+
+    pub async fn get_track(&self) -> [bool; 4] {
+        self.sensor_data.read().await.track_sensor
     }
 
     pub async fn set_buzzer(&mut self, freq: u16) -> anyhow::Result<()> {
