@@ -16,6 +16,10 @@ pub struct UltraSensor {
 
 #[embassy_executor::task]
 async fn ultra_sensor_task(mut ultra: UltraSensor) {
+    // for these, refer to the ultra sensor datasheet
+    const MIN_DIST: u16 = 2;
+    const MAX_DIST: u16 = 400;
+
     loop {
         let _ = with_timeout(Duration::from_millis(60), async {
             ultra.trig.set_high();
@@ -28,11 +32,13 @@ async fn ultra_sensor_task(mut ultra: UltraSensor) {
             ultra.echo.wait_for_low().await;
             let fall = Instant::now();
 
-            let dist = (fall - rise).as_micros() * 343 / 10000 / 2;
+            let dist = ((fall - rise).as_micros() * 343 / 10000 / 2) as u16;
 
-            ultra.push_data(dist as u16);
-            DATA.send(SerialData::UltraSensor(ultra.get_dist().unwrap()))
-                .await;
+            if (MIN_DIST..=MAX_DIST).contains(&dist) {
+                ultra.push_data(dist);
+                DATA.send(SerialData::UltraSensor(ultra.get_dist().unwrap()))
+                    .await;
+            }
 
             Timer::after_millis(60).await;
         })
