@@ -8,6 +8,7 @@ use tokio::{
     sync::{broadcast, mpsc},
 };
 use tokio_serial::{SerialPortBuilderExt, SerialStream};
+use tokio_util::sync::CancellationToken;
 
 use crate::backend::Pico;
 
@@ -58,7 +59,7 @@ async fn find_pico_path() -> anyhow::Result<String> {
 /// initialize serial communication with the Pico
 ///
 /// returns a clone-able Pico device
-pub async fn init() -> anyhow::Result<Pico> {
+pub async fn init(token: CancellationToken) -> anyhow::Result<Pico> {
     let (cmd_tx, cmd_rx) = mpsc::channel::<SerialCMD>(32);
     let (data_tx, data_rx) = broadcast::channel::<SerialData>(32);
 
@@ -69,14 +70,24 @@ pub async fn init() -> anyhow::Result<Pico> {
 
     let (reader, writer) = split(port);
 
-    tokio::spawn(async {
-        tokio::select! {
-            _ = read_task(reader, data_tx) => {},
-            _ = write_task(writer, cmd_rx) => {},
-        }
-    });
+    {
+        let token = token.clone();
+        tokio::spawn(async move {
+            tokio::select! {
+                _ = read_task(reader, data_tx) => {
+                    token.cancel();
+                },
+                _ = write_task(writer, cmd_rx) => {
+                    token.cancel();
+                },
+                _ = token.cancelled() => {
+                    info!("Serial task shutting down");
+                }
+            }
+        });
+    }
 
-    Ok(Pico::new(cmd_tx, data_rx))
+    Ok(Pico::new(cmd_tx, data_rx, token))
 }
 
 async fn read_task(mut reader: ReadHalf<SerialStream>, data_tx: broadcast::Sender<SerialData>) {

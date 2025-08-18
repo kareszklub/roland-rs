@@ -13,3 +13,4 @@ postcard = { version = "1.0.0", features = ["use-std"] }
 log = "0.4.27"
 simple_logger = "5.0.0"
 anyhow = "1.0.99"
+tokio-util = "0.7.16"

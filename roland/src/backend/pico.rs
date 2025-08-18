@@ -1,7 +1,8 @@
 use std::{sync::Arc, time::Instant};
 
-use log::error;
+use log::{error, info};
 use tokio::sync::{RwLock, broadcast, mpsc};
+use tokio_util::sync::CancellationToken;
 
 use crate::backend::serial::TrackSensorID;
 
@@ -19,23 +20,34 @@ pub struct Pico {
 }
 
 impl Pico {
-    pub fn new(cmd_tx: mpsc::Sender<SerialCMD>, data_rx: broadcast::Receiver<SerialData>) -> Self {
+    pub fn new(
+        cmd_tx: mpsc::Sender<SerialCMD>,
+        data_rx: broadcast::Receiver<SerialData>,
+        token: CancellationToken,
+    ) -> Self {
         let sensor_data = Arc::new(RwLock::new(SensorData {
             ultra_sensor: None,
             track_sensor: [false; 4],
         }));
 
-        let sensor_data_clone = sensor_data.clone();
-        tokio::spawn(async move {
-            Self::data_task(data_rx, sensor_data_clone).await;
-        });
+        {
+            let sensor_data = sensor_data.clone();
+            tokio::spawn(async move {
+                tokio::select! {
+                    _ = Self::data_task(data_rx, sensor_data) => {
+                        token.cancel();
+                    },
+                    _ = token.cancelled() => {
+                        info!("Pico task shutting down");
+                    }
+                };
+            });
+        }
 
-        let hw = Self {
+        Self {
             cmd_tx,
             sensor_data,
-        };
-
-        hw
+        }
     }
 
     async fn data_task(
@@ -66,6 +78,18 @@ impl Pico {
                 }
             }
         }
+    }
+
+    /// Reset all hardware peripherals to a neutral state
+    ///
+    /// this should be called before terminating the program, in avoidance of some very serious
+    /// consequences (RIP camera holder, you won't be forgotten)
+    pub async fn reset(&mut self) -> anyhow::Result<()> {
+        self.set_buzzer(0).await?;
+        self.set_led(0, 0, 0).await?;
+        self.set_servo(0).await?;
+        self.set_motor(0, 0).await?;
+        Ok(())
     }
 
     /// returns the latest measured distance in cm
