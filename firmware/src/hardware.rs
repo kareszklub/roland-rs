@@ -58,13 +58,12 @@ impl Hardware {
         );
 
         let hb = HBridge::new(
-            Pwm::new_output_ab(p.PWM_SLICE6, p.PIN_12, p.PIN_13, pwm::Config::default()),
-            Pwm::new_output_ab(p.PWM_SLICE5, p.PIN_10, p.PIN_11, pwm::Config::default()),
-            p.PIN_15,
-            p.PIN_14,
+            p.PIN_10,
+            p.PIN_11,
+            p.PIN_12,
+            p.PIN_13,
+            Pwm::new_output_ab(p.PWM_SLICE7, p.PIN_14, p.PIN_15, pwm::Config::default()),
             2000,
-            true,
-            false,
         );
 
         UltraSensor::init(p.PIN_21, p.PIN_20, spawner);
