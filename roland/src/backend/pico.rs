@@ -3,19 +3,19 @@ use std::{sync::Arc, time::Instant};
 use log::error;
 use tokio::sync::{RwLock, broadcast, mpsc};
 
-use crate::serial::{SerialCMD, SerialData};
+use super::serial::{SerialCMD, SerialData};
 
 struct SensorData {
     ultra_sensor: Option<(u16, Instant)>,
 }
 
 #[derive(Clone)]
-pub struct Hardware {
+pub struct Pico {
     cmd_tx: mpsc::Sender<SerialCMD>,
     sensor_data: Arc<RwLock<SensorData>>,
 }
 
-impl Hardware {
+impl Pico {
     pub fn new(cmd_tx: mpsc::Sender<SerialCMD>, data_rx: broadcast::Receiver<SerialData>) -> Self {
         let sensor_data = Arc::new(RwLock::new(SensorData { ultra_sensor: None }));
 
@@ -66,28 +66,23 @@ impl Hardware {
         }
     }
 
-    pub async fn set_buzzer(&mut self, freq: u16) -> Result<(), mpsc::error::SendError<SerialCMD>> {
-        self.cmd_tx.send(SerialCMD::Buzzer(freq)).await
+    pub async fn set_buzzer(&mut self, freq: u16) -> anyhow::Result<()> {
+        self.cmd_tx.send(SerialCMD::Buzzer(freq)).await?;
+        Ok(())
     }
 
-    pub async fn set_led(
-        &mut self,
-        r: u8,
-        g: u8,
-        b: u8,
-    ) -> Result<(), mpsc::error::SendError<SerialCMD>> {
-        self.cmd_tx.send(SerialCMD::LED((r, g, b))).await
+    pub async fn set_led(&mut self, r: u8, g: u8, b: u8) -> anyhow::Result<()> {
+        self.cmd_tx.send(SerialCMD::LED((r, g, b))).await?;
+        Ok(())
     }
 
-    pub async fn set_servo(&mut self, deg: i8) -> Result<(), mpsc::error::SendError<SerialCMD>> {
-        self.cmd_tx.send(SerialCMD::Servo(deg)).await
+    pub async fn set_servo(&mut self, deg: i8) -> anyhow::Result<()> {
+        self.cmd_tx.send(SerialCMD::Servo(deg)).await?;
+        Ok(())
     }
 
-    pub async fn set_motor(
-        &mut self,
-        left: i32,
-        right: i32,
-    ) -> Result<(), mpsc::error::SendError<SerialCMD>> {
-        self.cmd_tx.send(SerialCMD::HBridge((left, right))).await
+    pub async fn set_motor(&mut self, left: i32, right: i32) -> anyhow::Result<()> {
+        self.cmd_tx.send(SerialCMD::HBridge((left, right))).await?;
+        Ok(())
     }
 }

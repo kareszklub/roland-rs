@@ -9,7 +9,7 @@ use tokio::{
 };
 use tokio_serial::{SerialPortBuilderExt, SerialStream};
 
-use crate::hardware::Hardware;
+use crate::backend::Pico;
 
 /// pico -> pi
 #[derive(Deserialize, Debug, Clone)]
@@ -47,8 +47,8 @@ async fn find_pico_path() -> anyhow::Result<String> {
 
 /// initialize serial communication with the Pico
 ///
-/// returns a Hardware wrapper for interacting with it
-pub async fn init() -> anyhow::Result<Hardware> {
+/// returns a clone-able Pico device
+pub async fn init() -> anyhow::Result<Pico> {
     let (cmd_tx, cmd_rx) = mpsc::channel::<SerialCMD>(32);
     let (data_tx, data_rx) = broadcast::channel::<SerialData>(32);
 
@@ -66,7 +66,7 @@ pub async fn init() -> anyhow::Result<Hardware> {
         }
     });
 
-    Ok(Hardware::new(cmd_tx, data_rx))
+    Ok(Pico::new(cmd_tx, data_rx))
 }
 
 async fn read_task(mut reader: ReadHalf<SerialStream>, data_tx: broadcast::Sender<SerialData>) {
