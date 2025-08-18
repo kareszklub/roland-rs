@@ -1,3 +1,5 @@
+use std::time::Duration;
+
 use anyhow::anyhow;
 use log::{error, info, trace};
 use postcard::{from_bytes, to_stdvec};
@@ -6,6 +8,7 @@ use tokio::{
     fs,
     io::{AsyncReadExt, AsyncWriteExt, ReadHalf, WriteHalf, split},
     sync::{broadcast, mpsc},
+    time::sleep,
 };
 use tokio_serial::{SerialPortBuilderExt, SerialStream};
 use tokio_util::sync::CancellationToken;
@@ -77,15 +80,14 @@ pub async fn init(token: CancellationToken) -> anyhow::Result<Pico> {
                 _ = read_task(reader, data_tx) => {
                     token.cancel();
                 },
-                _ = write_task(writer, cmd_rx) => {
-                    token.cancel();
-                },
-                _ = token.cancelled() => {
-                    info!("Serial task shutting down");
-                }
+                _ = token.cancelled() => {},
             }
         });
     }
+
+    tokio::spawn(async move {
+        write_task(writer, cmd_rx).await;
+    });
 
     Ok(Pico::new(cmd_tx, data_rx, token))
 }

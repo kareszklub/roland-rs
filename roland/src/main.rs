@@ -3,16 +3,16 @@ use std::time::Duration;
 use tokio::time::sleep;
 use tokio_util::sync::CancellationToken;
 
-use crate::backend::Backend;
+use crate::backend::roland::Roland;
 
 mod backend;
 
-async fn main_task(mut backend: Backend) {
+async fn main_task(mut r: Roland) {
     // blink example
     loop {
-        for v in [255, 0] {
-            backend.pico.set_led(v, v, v).await.unwrap();
-            info!("Dist: {:?}", backend.pico.get_ultra().await);
+        for v in [255] {
+            r.pico.set_led(v, v, v).await.unwrap();
+            info!("Dist: {:?}", r.pico.get_ultra().await);
             sleep(Duration::from_millis(70)).await;
         }
     }
@@ -24,18 +24,18 @@ async fn main() {
 
     let token = CancellationToken::new();
 
-    let backend = Backend::init(token.clone())
+    let r = Roland::init(token.clone())
         .await
         .expect("Failed to init backend");
 
     {
         let token = token.clone();
-        let backend = backend.clone();
+        let mut r = r.clone();
         tokio::spawn(async move {
             let _ = tokio::signal::ctrl_c().await;
             info!("^C interrupt received, cleanup started");
 
-            let _ = backend.pico.reset().await;
+            let _ = r.pico.reset().await;
 
             info!("Cleanup finished, shutdown initiated");
             token.cancel();
@@ -43,7 +43,7 @@ async fn main() {
     }
 
     tokio::select! {
-        _ = main_task(backend) => {}
+        _ = main_task(r) => {}
         _ = token.cancelled() => {
             info!("Main task shutting down");
         }
