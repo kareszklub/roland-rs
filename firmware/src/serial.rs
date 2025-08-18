@@ -4,7 +4,6 @@ use embassy_rp::usb::{Driver, InterruptHandler};
 use embassy_rp::{bind_interrupts, Peri};
 use embassy_sync::blocking_mutex::raw::ThreadModeRawMutex;
 use embassy_sync::channel::Channel;
-use embassy_time::Timer;
 use embassy_usb::class::cdc_acm::{CdcAcmClass, Receiver, Sender, State};
 use embassy_usb::UsbDevice;
 use postcard::{from_bytes, to_slice};
@@ -40,10 +39,10 @@ pub enum SerialCMD {
 }
 
 /// channel for incoming messages
-pub static CMD: Channel<ThreadModeRawMutex, SerialCMD, 16> = Channel::new();
+pub static CMD: Channel<ThreadModeRawMutex, SerialCMD, 64> = Channel::new();
 
 /// channel for outgoing messages
-pub static DATA: Channel<ThreadModeRawMutex, SerialData, 16> = Channel::new();
+pub static DATA: Channel<ThreadModeRawMutex, SerialData, 64> = Channel::new();
 
 #[embassy_executor::task]
 async fn usb_task(mut usb: UsbDevice<'static, Driver<'static, USB>>) -> ! {
