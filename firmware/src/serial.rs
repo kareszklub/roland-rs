@@ -11,6 +11,8 @@ use postcard::{from_bytes, to_slice};
 use serde::{Deserialize, Serialize};
 use static_cell::StaticCell;
 
+use crate::drivers::track_sensor::TrackSensorID;
+
 bind_interrupts!(pub struct Irqs {
     USBCTRL_IRQ => InterruptHandler<USB>;
 });
@@ -20,6 +22,8 @@ bind_interrupts!(pub struct Irqs {
 pub enum SerialData {
     /// measured distance in cm
     UltraSensor(u16),
+    /// sensor id and value
+    TrackSensor((TrackSensorID, bool)),
 }
 
 /// pi -> pico

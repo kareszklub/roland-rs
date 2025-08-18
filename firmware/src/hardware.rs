@@ -6,7 +6,8 @@ use embassy_rp::{
 
 use crate::{
     drivers::{
-        buzzer::Buzzer, h_bridge::HBridge, rgb_led::RGBLed, servo::Servo, ultra_sensor::UltraSensor,
+        buzzer::Buzzer, h_bridge::HBridge, rgb_led::RGBLed, servo::Servo,
+        track_sensor::TrackSensor, ultra_sensor::UltraSensor,
     },
     serial::{serial_init, SerialCMD, CMD},
 };
@@ -67,6 +68,8 @@ impl Hardware {
         );
 
         UltraSensor::init(p.PIN_21, p.PIN_20, spawner);
+
+        TrackSensor::init(p.PIN_6, p.PIN_7, p.PIN_8, p.PIN_9, spawner);
 
         let hw = Self {
             buzzer,
