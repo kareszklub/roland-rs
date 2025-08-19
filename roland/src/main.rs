@@ -1,21 +1,12 @@
 use log::info;
-use std::time::Duration;
-use tokio::time::sleep;
 use tokio_util::sync::CancellationToken;
 
 use crate::backend::roland::Roland;
 
 mod backend;
 
-async fn main_task(mut r: Roland) {
-    // blink example
-    loop {
-        for v in [255] {
-            r.pico.set_led(v, v, v).await.unwrap();
-            info!("Dist: {:?}", r.pico.get_ultra().await);
-            sleep(Duration::from_millis(70)).await;
-        }
-    }
+async fn main_task(r: Roland) {
+    r.track_sensor_test().await;
 }
 
 #[tokio::main]
