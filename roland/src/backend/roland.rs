@@ -50,4 +50,16 @@ impl Roland {
             }
         }
     }
+
+    pub async fn ultra_test(&mut self) {
+        loop {
+            let d = match self.pico.get_ultra().await {
+                Some(d) => d,
+                None => 0,
+            };
+
+            info!("{:>3} cm", d);
+            sleep(Duration::from_millis(60)).await;
+        }
+    }
 }

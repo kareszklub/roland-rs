@@ -7,7 +7,7 @@ mod backend;
 mod util;
 
 async fn main_task(mut r: Roland) {
-    r.rgb_led_test().await;
+    r.ultra_test().await;
 }
 
 #[tokio::main]
