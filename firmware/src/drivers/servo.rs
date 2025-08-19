@@ -21,6 +21,8 @@ impl<'a> Servo<'a> {
     }
 
     fn duty(&mut self, d: u16) {
+        // flip direction
+        let d = 0xffff - d;
         let d = d as u32;
 
         let duty = if d < 0xffff / 2 {

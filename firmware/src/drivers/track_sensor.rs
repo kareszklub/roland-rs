@@ -19,12 +19,13 @@ pub struct TrackSensor {}
 
 #[embassy_executor::task(pool_size = 4)]
 async fn track_sensor_task(mut pin: Input<'static>, id: TrackSensorID) {
-    let mut state = pin.get_level() == Level::High;
     loop {
         pin.wait_for_any_edge().await;
-        state = !state;
-        DATA.send(SerialData::TrackSensor((id.clone(), state)))
-            .await;
+        DATA.send(SerialData::TrackSensor((
+            id.clone(),
+            pin.get_level().into(),
+        )))
+        .await;
     }
 }
 

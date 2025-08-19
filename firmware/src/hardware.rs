@@ -51,10 +51,10 @@ impl Hardware {
         );
 
         let servo = Servo::new(
-            Pwm::new_output_a(p.PWM_SLICE0, p.PIN_16, pwm::Config::default()),
-            2400,
-            5200,
-            8520,
+            Pwm::new_output_a(p.PWM_SLICE0, p.PIN_0, pwm::Config::default()),
+            2100,
+            4800,
+            8300,
         );
 
         let hb = HBridge::new(

@@ -5,8 +5,8 @@ use crate::backend::roland::Roland;
 
 mod backend;
 
-async fn main_task(r: Roland) {
-    r.track_sensor_test().await;
+async fn main_task(mut r: Roland) {
+    r.servo_test().await;
 }
 
 #[tokio::main]
