@@ -9,8 +9,6 @@ use crate::hardware::Hardware;
 mod drivers;
 mod hardware;
 mod serial;
-mod test;
-mod util;
 
 // firmware metadata
 #[unsafe(link_section = ".bi_entries")]

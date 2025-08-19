@@ -4,9 +4,10 @@ use tokio_util::sync::CancellationToken;
 use crate::backend::roland::Roland;
 
 mod backend;
+mod util;
 
 async fn main_task(mut r: Roland) {
-    r.servo_test().await;
+    r.rgb_led_test().await;
 }
 
 #[tokio::main]

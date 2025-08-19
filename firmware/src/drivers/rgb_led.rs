@@ -28,8 +28,8 @@ impl<'a> RGBLed<'a> {
         let g = g as u16 * ((0xffff / 0xff) as u16);
         let b = b as u16 * ((0xffff / 0xff) as u16);
 
-        self.rg_pwm.set_duty_a(0xffff - r);
-        self.rg_pwm.set_duty_b(0xffff - g);
-        self.b_pwm.set_duty_a(0xffff - b);
+        self.rg_pwm.set_duty_a(r);
+        self.rg_pwm.set_duty_b(g);
+        self.b_pwm.set_duty_a(b);
     }
 }
