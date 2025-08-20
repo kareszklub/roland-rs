@@ -62,4 +62,15 @@ impl Roland {
             sleep(Duration::from_millis(60)).await;
         }
     }
+
+    pub async fn motor_test(&mut self) {
+        loop {
+            for i in (0..100).chain((0..=100).rev()) {
+                let s = ((i as f64 / 100.0) * 0xffff as f64).round() as i32;
+                let s = 0xffff;
+                self.pico.set_motor(s, s).await.unwrap();
+                sleep(Duration::from_millis(20)).await;
+            }
+        }
+    }
 }

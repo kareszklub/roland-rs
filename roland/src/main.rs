@@ -7,7 +7,7 @@ mod backend;
 mod util;
 
 async fn main_task(mut r: Roland) {
-    r.ultra_test().await;
+    r.motor_test().await;
 }
 
 #[tokio::main]
