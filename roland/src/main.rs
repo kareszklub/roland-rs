@@ -7,7 +7,12 @@ mod backend;
 mod util;
 
 async fn main_task(mut r: Roland) {
-    r.motor_test().await;
+    r.pico.set_motor(0xffff, -0xffff).await.unwrap();
+    let mut r_cl = r.clone();
+    tokio::select! {
+        _ = r.rgb_led_test() => {},
+        _ = r_cl.ultra_test() => {},
+    }
 }
 
 #[tokio::main]

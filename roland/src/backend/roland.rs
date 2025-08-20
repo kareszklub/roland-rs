@@ -32,6 +32,7 @@ impl Roland {
         loop {
             for d in [-90, 0, 90, 0] {
                 self.pico.set_servo(d).await.unwrap();
+                info!("Servo set to {}", d);
                 sleep(Duration::from_secs(2)).await;
             }
         }
