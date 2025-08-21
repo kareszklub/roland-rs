@@ -30,7 +30,7 @@ impl Roland {
 
     pub async fn servo_test(&mut self) {
         loop {
-            for d in [-90, 0, 90, 0] {
+            for d in [-30, 0, 30, 0] {
                 self.pico.set_servo(d).await.unwrap();
                 info!("Servo set to {}", d);
                 sleep(Duration::from_secs(2)).await;
@@ -71,6 +71,29 @@ impl Roland {
                 let s = 0xffff;
                 self.pico.set_motor(s, s).await.unwrap();
                 sleep(Duration::from_millis(20)).await;
+            }
+        }
+    }
+
+    pub async fn keep_distance(&mut self, sp: u16) {
+        const MAX_TRESHOLD: u16 = 50;
+        loop {
+            loop {
+                let speed = match self.pico.get_ultra().await {
+                    Some(pv) => {
+                        let s = (pv as i32 - sp as i32) * (0xffff / MAX_TRESHOLD) as i32;
+                        info!(
+                            "{:>3} cm | {:>3}%",
+                            pv,
+                            (s.abs() as f64 / 0xffff as f64 * 100 as f64) as u8
+                        );
+                        s
+                    }
+                    None => 0,
+                };
+
+                self.pico.set_motor(speed, speed).await.unwrap();
+                sleep(Duration::from_millis(60)).await;
             }
         }
     }

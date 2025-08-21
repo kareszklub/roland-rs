@@ -39,19 +39,19 @@ impl Hardware {
         spawner.spawn(serial_init(p.USB, spawner)).unwrap();
 
         let buzzer = Buzzer::new(Pwm::new_output_a(
-            p.PWM_SLICE2,
-            p.PIN_4,
+            p.PWM_SLICE0,
+            p.PIN_0,
             pwm::Config::default(),
         ));
 
         let led = RGBLed::new(
             Pwm::new_output_ab(p.PWM_SLICE1, p.PIN_18, p.PIN_19, pwm::Config::default()),
-            Pwm::new_output_a(p.PWM_SLICE3, p.PIN_22, pwm::Config::default()),
+            Pwm::new_output_a(p.PWM_SLICE2, p.PIN_20, pwm::Config::default()),
             2000,
         );
 
         let servo = Servo::new(
-            Pwm::new_output_a(p.PWM_SLICE0, p.PIN_0, pwm::Config::default()),
+            Pwm::new_output_a(p.PWM_SLICE6, p.PIN_28, pwm::Config::default()),
             2100,
             4800,
             8300,
@@ -66,9 +66,9 @@ impl Hardware {
             2000,
         );
 
-        UltraSensor::init(p.PIN_21, p.PIN_20, spawner);
+        UltraSensor::init(p.PIN_21, p.PIN_22, spawner);
 
-        TrackSensor::init(p.PIN_6, p.PIN_7, p.PIN_8, p.PIN_9, spawner);
+        TrackSensor::init(p.PIN_2, p.PIN_3, p.PIN_4, p.PIN_5, spawner);
 
         let hw = Self {
             buzzer,

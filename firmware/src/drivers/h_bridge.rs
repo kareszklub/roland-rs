@@ -44,12 +44,12 @@ impl<'a> HBridge<'a> {
         self.pwm.set_duty_b(r.unsigned_abs() as u16);
 
         self.l1
-            .set_level(if l > 0 { Level::High } else { Level::Low });
-        self.l2
             .set_level(if l < 0 { Level::High } else { Level::Low });
+        self.l2
+            .set_level(if l > 0 { Level::High } else { Level::Low });
         self.r1
-            .set_level(if r > 0 { Level::High } else { Level::Low });
-        self.r2
             .set_level(if r < 0 { Level::High } else { Level::Low });
+        self.r2
+            .set_level(if r > 0 { Level::High } else { Level::Low });
     }
 }
