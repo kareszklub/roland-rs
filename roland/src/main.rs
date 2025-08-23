@@ -7,20 +7,14 @@ mod backend;
 mod util;
 
 async fn main_task(mut r: Roland) {
-    // r.pico.set_motor(0xffff, -0xffff).await.unwrap();
-    r.pico.set_buzzer(400).await.unwrap();
-    // r.rgb_led_test().await;
-    r.servo_test().await;
-    // let mut r_cl = r.clone();
-    // tokio::select! {
-    //     _ = r.rgb_led_test() => {},
-    //     _ = r_cl.keep_distance(30) => {},
-    // }
+    tokio::select! {
+        _ = r.follow_line(0.9) => {},
+    }
 }
 
 #[tokio::main]
 async fn main() {
-    simple_logger::init_with_level(log::Level::Info).unwrap();
+    simple_logger::init_with_level(log::Level::Debug).unwrap();
 
     let token = CancellationToken::new();
 
