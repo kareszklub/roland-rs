@@ -1,4 +1,4 @@
-use log::info;
+use log::{error, info};
 use tokio_util::sync::CancellationToken;
 
 use crate::backend::roland::Roland;
@@ -6,10 +6,11 @@ use crate::backend::roland::Roland;
 mod backend;
 mod util;
 
-async fn main_task(mut r: Roland) {
+async fn main_task(mut r: Roland) -> anyhow::Result<()> {
     tokio::select! {
-        _ = r.follow_line(0.9) => {},
+        ret = r.follow_line(0.9) => ret?
     }
+    Ok(())
 }
 
 #[tokio::main]
@@ -18,26 +19,26 @@ async fn main() {
 
     let token = CancellationToken::new();
 
-    let r = Roland::init(token.clone())
+    let mut r = Roland::init(token.clone())
         .await
         .expect("Failed to init backend");
 
     {
-        let token = token.clone();
         let mut r = r.clone();
         tokio::spawn(async move {
             let _ = tokio::signal::ctrl_c().await;
-            info!("^C interrupt received, cleanup started");
-
-            let _ = r.pico.reset().await;
-
-            info!("Cleanup finished, shutdown initiated");
-            token.cancel();
+            info!("^C interrupt received, shutdown initiated");
+            r.reset().await.unwrap();
         });
     }
 
     tokio::select! {
-        _ = main_task(r) => {}
+        ret = main_task(r.clone()) => {
+            if let Err(e) = ret {
+                error!("{}", e);
+            }
+            r.reset().await.unwrap();
+        }
         _ = token.cancelled() => {
             info!("Main task shutting down");
         }

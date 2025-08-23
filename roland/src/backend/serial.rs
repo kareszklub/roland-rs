@@ -1,19 +1,16 @@
-use std::time::Duration;
-
 use anyhow::anyhow;
-use log::{error, info, trace};
+use log::{debug, error, info, trace};
 use postcard::{from_bytes, to_stdvec};
 use serde::{Deserialize, Serialize};
 use tokio::{
     fs,
     io::{AsyncReadExt, AsyncWriteExt, ReadHalf, WriteHalf, split},
     sync::{broadcast, mpsc},
-    time::sleep,
 };
 use tokio_serial::{SerialPortBuilderExt, SerialStream};
 use tokio_util::sync::CancellationToken;
 
-use crate::backend::Pico;
+use crate::backend::pico::Pico;
 
 #[derive(Deserialize, Debug, Clone)]
 pub enum TrackSensorID {
@@ -43,16 +40,21 @@ pub enum SerialCMD {
     Servo(i8),
     /// duty cycle (sign is direction)
     HBridge((i32, i32)),
+    /// this variant only exists on the pi side
+    ///
+    /// upon receiving this message, all commands defined here will get sent, and the serial is
+    /// closed
+    Reset(Vec<SerialCMD>),
 }
 
 async fn find_pico_path() -> anyhow::Result<String> {
     let mut entries = fs::read_dir("/dev").await?;
 
     while let Ok(Some(entry)) = entries.next_entry().await {
-        if let Some(name) = entry.file_name().to_str() {
-            if name.starts_with("ttyACM") {
-                return Ok(format!("/dev/{}", name));
-            }
+        if let Some(name) = entry.file_name().to_str()
+            && name.starts_with("ttyACM")
+        {
+            return Ok(format!("/dev/{}", name));
         }
     }
 
@@ -77,30 +79,40 @@ pub async fn init(token: CancellationToken) -> anyhow::Result<Pico> {
         let token = token.clone();
         tokio::spawn(async move {
             tokio::select! {
-                _ = read_task(reader, data_tx) => {
+                ret = read_task(reader, data_tx) => {
+                    match ret {
+                        Ok(()) => debug!("[Serial Data] task shutting down"),
+                        Err(e) => error!("[Serial Data] task shutting down: {}", e),
+                    }
                     token.cancel();
                 },
+                ret = write_task(writer, cmd_rx) => {
+                    match ret {
+                        Ok(()) => debug!("[Serial Write] task shutting down"),
+                        Err(e) => error!("[Serial Write] task shutting down: {}", e),
+                    }
+                    token.cancel();
+                }
                 _ = token.cancelled() => {},
             }
         });
     }
 
-    tokio::spawn(async move {
-        write_task(writer, cmd_rx).await;
-    });
-
     Ok(Pico::new(cmd_tx, data_rx, token))
 }
 
-async fn read_task(mut reader: ReadHalf<SerialStream>, data_tx: broadcast::Sender<SerialData>) {
+async fn read_task(
+    mut reader: ReadHalf<SerialStream>,
+    data_tx: broadcast::Sender<SerialData>,
+) -> anyhow::Result<()> {
     let mut buf = vec![0u8; 64];
     loop {
-        match reader.read(&mut buf).await {
-            Ok(0) => {
+        match reader.read(&mut buf).await? {
+            0 => {
                 error!("Serial port closed by peer");
                 break;
             }
-            Ok(n) => match from_bytes::<SerialData>(&buf[..n]) {
+            n => match from_bytes::<SerialData>(&buf[..n]) {
                 Ok(data) => {
                     if let Err(e) = data_tx.send(data.clone()) {
                         error!("Couldn't send data: {}", e);
@@ -110,21 +122,27 @@ async fn read_task(mut reader: ReadHalf<SerialStream>, data_tx: broadcast::Sende
                 }
                 Err(e) => error!("Couldn't parse data({:?}): {}", &buf[..n], e),
             },
-            Err(e) => {
-                error!("Read error: {}", e);
-                break;
-            }
         }
     }
+    Ok(())
 }
 
-async fn write_task(mut writer: WriteHalf<SerialStream>, mut cmd_rx: mpsc::Receiver<SerialCMD>) {
+async fn write_task(
+    mut writer: WriteHalf<SerialStream>,
+    mut cmd_rx: mpsc::Receiver<SerialCMD>,
+) -> anyhow::Result<()> {
     while let Some(cmd) = cmd_rx.recv().await {
-        let data = to_stdvec(&cmd).unwrap();
-        if let Err(e) = writer.write_all(&data).await {
-            error!("Write error: {}", e);
-        } else {
-            trace!("Sent: {:?}", cmd);
+        if let SerialCMD::Reset(cmds) = cmd {
+            for cmd in cmds {
+                let data = to_stdvec(&cmd).unwrap();
+                writer.write_all(&data).await?;
+            }
+            break;
         }
+
+        let data = to_stdvec(&cmd).unwrap();
+        writer.write_all(&data).await?;
+        trace!("Sent: {:?}", cmd);
     }
+    Ok(())
 }

@@ -1,6 +1,5 @@
+use log::info;
 use std::time::Duration;
-
-use log::{debug, info, warn};
 use tokio::time::sleep;
 use tokio_util::sync::CancellationToken;
 
@@ -21,24 +20,32 @@ impl Roland {
         })
     }
 
-    pub async fn track_sensor_test(&self) {
+    pub async fn reset(&mut self) -> anyhow::Result<()> {
+        self.pico.reset().await?;
+
+        Ok(())
+    }
+
+    pub async fn track_sensor_test(&self) -> anyhow::Result<()> {
+        let mut track_rx = self.pico.subscribe_track();
         loop {
-            info!("{:?}", self.pico.get_track().await);
-            sleep(Duration::from_millis(10)).await;
+            let track = *track_rx.borrow_and_update();
+            info!("{:?}", track);
+            track_rx.changed().await?;
         }
     }
 
-    pub async fn servo_test(&mut self) {
+    pub async fn servo_test(&mut self) -> anyhow::Result<()> {
         loop {
             for d in [-30, 0, 30, 0] {
-                self.pico.set_servo(d).await.unwrap();
+                self.pico.set_servo(d).await?;
                 info!("Servo set to {}", d);
                 sleep(Duration::from_secs(2)).await;
             }
         }
     }
 
-    pub async fn rgb_led_test(&mut self) {
+    pub async fn rgb_led_test(&mut self) -> anyhow::Result<()> {
         loop {
             for h in 0..360 {
                 let rgb = RGB::from_hsv(&HSV {
@@ -46,59 +53,60 @@ impl Roland {
                     s: 1.0,
                     v: 1.0,
                 });
-                self.pico.set_led(rgb.r, rgb.g, rgb.b).await.unwrap();
+                self.pico.set_led(rgb.r, rgb.g, rgb.b).await?;
                 sleep(Duration::from_millis(3000 / 360)).await;
             }
         }
     }
 
-    pub async fn ultra_test(&mut self) {
+    pub async fn ultra_test(&self) -> anyhow::Result<()> {
+        let mut ultra_rx = self.pico.subscribe_ultra();
         loop {
-            let d = match self.pico.get_ultra().await {
+            let d = match *ultra_rx.borrow_and_update() {
                 Some(d) => d,
                 None => 0,
             };
 
             info!("{:>3} cm", d);
-            sleep(Duration::from_millis(60)).await;
+
+            ultra_rx.changed().await?;
         }
     }
 
-    pub async fn motor_test(&mut self) {
+    pub async fn motor_test(&mut self) -> anyhow::Result<()> {
         loop {
             for i in (0..100).chain((0..=100).rev()) {
                 let s = ((i as f64 / 100.0) * 0xffff as f64).round() as i32;
-                let s = 0xffff;
-                self.pico.set_motor(s, s).await.unwrap();
+                self.pico.set_motor(s, s).await?;
                 sleep(Duration::from_millis(20)).await;
             }
         }
     }
 
-    pub async fn keep_distance(&mut self, sp: u16) {
+    pub async fn keep_distance(&mut self, sp: u16) -> anyhow::Result<()> {
         const MAX_TRESHOLD: u16 = 50;
+        let mut ultra_rx = self.pico.subscribe_ultra();
         loop {
-            loop {
-                let speed = match self.pico.get_ultra().await {
-                    Some(pv) => {
-                        let s = (pv as i32 - sp as i32) * (0xffff / MAX_TRESHOLD) as i32;
-                        info!(
-                            "{:>3} cm | {:>3}%",
-                            pv,
-                            (s.abs() as f64 / 0xffff as f64 * 100 as f64) as u8
-                        );
-                        s
-                    }
-                    None => 0,
-                };
+            let speed = match *ultra_rx.borrow_and_update() {
+                Some(pv) => {
+                    let s = (pv as i32 - sp as i32) * (0xffff / MAX_TRESHOLD) as i32;
+                    info!(
+                        "{:>3} cm | {:>3}%",
+                        pv,
+                        (s.abs() as f64 / 0xffff as f64 * 100 as f64) as u8
+                    );
+                    s
+                }
+                None => 0,
+            };
 
-                self.pico.set_motor(speed, speed).await.unwrap();
-                sleep(Duration::from_millis(60)).await;
-            }
+            self.pico.set_motor(speed, speed).await?;
+
+            ultra_rx.changed().await?;
         }
     }
 
-    pub async fn follow_line(&mut self, speed: f64) {
+    pub async fn follow_line(&mut self, speed: f64) -> anyhow::Result<()> {
         #[derive(Debug)]
         enum TrackState {
             OnLine,
@@ -112,8 +120,10 @@ impl Roland {
         let mut state = TrackState::Unknown;
         let mut last_speed = None;
 
+        let mut track_rx = self.pico.subscribe_track();
+
         loop {
-            let [a, _b, c, _d] = self.pico.get_track().await;
+            let [a, _b, c, _d] = *track_rx.borrow_and_update();
 
             state = match (a, c) {
                 (false, false) => TrackState::OnLine,
@@ -145,7 +155,6 @@ impl Roland {
 
             if last_speed != Some((left, right)) {
                 last_speed = Some((left, right));
-                self.pico.set_motor(right, left).await.unwrap();
 
                 let (r, g, b) = match state {
                     TrackState::OnLine => (0, 255, 0),
@@ -156,11 +165,13 @@ impl Roland {
                     TrackState::Unknown => (255, 255, 255),
                 };
 
+                self.pico.set_motor(right, left).await?;
+                self.pico.set_led(r, g, b).await?;
+
                 info!("{:?}", state);
-                self.pico.set_led(r, g, b).await.unwrap();
             }
 
-            sleep(Duration::from_millis(2)).await;
+            track_rx.changed().await?;
         }
     }
 }
