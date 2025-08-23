@@ -1,4 +1,4 @@
-use log::{error, info};
+use log::{debug, error, info};
 use tokio_util::sync::CancellationToken;
 
 use crate::backend::roland::Roland;
@@ -34,13 +34,12 @@ async fn main() {
 
     tokio::select! {
         ret = main_task(r.clone()) => {
-            if let Err(e) = ret {
-                error!("{}", e);
+            match ret {
+                Ok(()) => debug!("[Main] task shutting down"),
+                Err(e) => error!("[Main] task shutting down: {}", e),
             }
             r.reset().await.unwrap();
         }
-        _ = token.cancelled() => {
-            info!("Main task shutting down");
-        }
+        _ = token.cancelled() => {}
     }
 }

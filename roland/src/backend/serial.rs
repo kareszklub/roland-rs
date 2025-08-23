@@ -20,7 +20,8 @@ pub enum TrackSensorID {
     R2,
 }
 
-/// pico -> pi
+/// data packet coming from the pico
+/// currently it's only used for sensor data
 #[derive(Deserialize, Debug, Clone)]
 pub enum SerialData {
     /// measured distance in cm
@@ -29,7 +30,7 @@ pub enum SerialData {
     TrackSensor((TrackSensorID, bool)),
 }
 
-/// pi -> pico
+/// command packet for direct control of devices managed by the pico
 #[derive(Serialize, Debug)]
 pub enum SerialCMD {
     /// frequency (Hz)
@@ -41,12 +42,14 @@ pub enum SerialCMD {
     /// duty cycle (sign is direction)
     HBridge((i32, i32)),
     /// this variant only exists on the pi side
-    ///
-    /// upon receiving this message, all commands defined here will get sent, and the serial is
+    /// upon receiving this message, all commands defined listed in it will get sent, and the serial is
     /// closed
     Reset(Vec<SerialCMD>),
 }
 
+/// try finding the pico device
+/// currently it returns the path for the first device named ttyACM*
+/// TODO: make this actually verify that the device is a pico
 async fn find_pico_path() -> anyhow::Result<String> {
     let mut entries = fs::read_dir("/dev").await?;
 
@@ -62,7 +65,6 @@ async fn find_pico_path() -> anyhow::Result<String> {
 }
 
 /// initialize serial communication with the Pico
-///
 /// returns a clone-able Pico device
 pub async fn init(token: CancellationToken) -> anyhow::Result<Pico> {
     let (cmd_tx, cmd_rx) = mpsc::channel::<SerialCMD>(32);
@@ -101,6 +103,7 @@ pub async fn init(token: CancellationToken) -> anyhow::Result<Pico> {
     Ok(Pico::new(cmd_tx, data_rx, token))
 }
 
+/// reads and deserializes all incoming traffic, forwarding it to the data channel
 async fn read_task(
     mut reader: ReadHalf<SerialStream>,
     data_tx: broadcast::Sender<SerialData>,
@@ -109,8 +112,7 @@ async fn read_task(
     loop {
         match reader.read(&mut buf).await? {
             0 => {
-                error!("Serial port closed by peer");
-                break;
+                return Err(anyhow!("Serial port closed by peer"));
             }
             n => match from_bytes::<SerialData>(&buf[..n]) {
                 Ok(data) => {
@@ -124,9 +126,9 @@ async fn read_task(
             },
         }
     }
-    Ok(())
 }
 
+/// serializes commands going to the pico
 async fn write_task(
     mut writer: WriteHalf<SerialStream>,
     mut cmd_rx: mpsc::Receiver<SerialCMD>,

@@ -8,6 +8,9 @@ use crate::{
     util::color::{HSV, RGB},
 };
 
+/// Roland controller backend
+/// all primitive and complex control procedures are defined here
+/// it can be cheaply cloned
 #[derive(Clone)]
 pub struct Roland {
     pub pico: Pico,
@@ -83,6 +86,7 @@ impl Roland {
         }
     }
 
+    /// TODO: implement PID to replace this toy example
     pub async fn keep_distance(&mut self, sp: u16) -> anyhow::Result<()> {
         const MAX_TRESHOLD: u16 = 50;
         let mut ultra_rx = self.pico.subscribe_ultra();
