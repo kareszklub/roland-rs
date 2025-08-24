@@ -63,7 +63,7 @@ impl Pico {
         loop {
             match data_rx.recv().await? {
                 SerialData::UltraSensor(dist) => {
-                    sensor_data.ultra_sensor.send_replace(Some(dist));
+                    sensor_data.ultra_sensor.send_replace(dist);
                 }
                 SerialData::TrackSensor((id, val)) => {
                     let mut current = *sensor_data.track_sensor.borrow();

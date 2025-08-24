@@ -25,7 +25,7 @@ pub enum TrackSensorID {
 #[derive(Deserialize, Debug, Clone)]
 pub enum SerialData {
     /// measured distance in cm
-    UltraSensor(u16),
+    UltraSensor(Option<u16>),
     /// sensor id and value
     TrackSensor((TrackSensorID, bool)),
 }

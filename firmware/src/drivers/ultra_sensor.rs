@@ -36,8 +36,10 @@ async fn ultra_sensor_task(mut ultra: UltraSensor) {
 
             if (MIN_DIST..=MAX_DIST).contains(&dist) {
                 ultra.push_data(dist);
-                DATA.send(SerialData::UltraSensor(ultra.get_dist().unwrap()))
+                DATA.send(SerialData::UltraSensor(Some(ultra.get_dist().unwrap())))
                     .await;
+            } else {
+                DATA.send(SerialData::UltraSensor(None)).await;
             }
 
             Timer::after_millis(60).await;

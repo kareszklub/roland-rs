@@ -20,7 +20,7 @@ bind_interrupts!(pub struct Irqs {
 #[derive(Serialize, Debug)]
 pub enum SerialData {
     /// measured distance in cm
-    UltraSensor(u16),
+    UltraSensor(Option<u16>),
     /// sensor id and value
     TrackSensor((TrackSensorID, bool)),
 }

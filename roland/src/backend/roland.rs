@@ -1,11 +1,14 @@
 use log::info;
-use std::time::Duration;
-use tokio::time::sleep;
+use std::time::{Duration, Instant};
+use tokio::time::{self, sleep};
 use tokio_util::sync::CancellationToken;
 
 use crate::{
     backend::{pico::Pico, serial},
-    util::color::{HSV, RGB},
+    util::{
+        color::{HSV, RGB},
+        pid::PID,
+    },
 };
 
 /// Roland controller backend
@@ -64,13 +67,16 @@ impl Roland {
 
     pub async fn ultra_test(&self) -> anyhow::Result<()> {
         let mut ultra_rx = self.pico.subscribe_ultra();
+        let mut last_t = Instant::now();
         loop {
             let d = match *ultra_rx.borrow_and_update() {
                 Some(d) => d,
                 None => 0,
             };
 
-            info!("{:>3} cm", d);
+            let now = Instant::now();
+            info!("{:>3} cm | {:>3} ms", d, (now - last_t).as_millis());
+            last_t = now;
 
             ultra_rx.changed().await?;
         }
@@ -86,24 +92,18 @@ impl Roland {
         }
     }
 
-    /// TODO: implement PID to replace this toy example
     pub async fn keep_distance(&mut self, sp: u16) -> anyhow::Result<()> {
-        const MAX_TRESHOLD: u16 = 50;
         let mut ultra_rx = self.pico.subscribe_ultra();
-        loop {
-            let speed = match *ultra_rx.borrow_and_update() {
-                Some(pv) => {
-                    let s = (pv as i32 - sp as i32) * (0xffff / MAX_TRESHOLD) as i32;
-                    info!(
-                        "{:>3} cm | {:>3}%",
-                        pv,
-                        (s.abs() as f64 / 0xffff as f64 * 100 as f64) as u8
-                    );
-                    s
-                }
-                None => 0,
-            };
+        let mut pid = PID::new(500., 100., 1., -5., 5., sp as f64);
 
+        loop {
+            let pv = (*ultra_rx.borrow_and_update()).unwrap_or(sp);
+
+            let speed = -pid.step(pv as f64).round() as i32;
+            let speed =
+                speed.signum() * (speed.abs() + 20000).clamp(0, (0xffff as f64 * 0.8) as i32);
+
+            info!("{:>4} {:>5}", pv, speed);
             self.pico.set_motor(speed, speed).await?;
 
             ultra_rx.changed().await?;

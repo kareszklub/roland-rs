@@ -8,7 +8,9 @@ mod util;
 
 async fn main_task(mut r: Roland) -> anyhow::Result<()> {
     tokio::select! {
-        ret = r.follow_line(0.9) => ret?
+        ret = r.keep_distance(50) => ret?,
+        // ret = r.ultra_test() => ret?
+        // ret = r.follow_line(0.9) => ret?
     }
     Ok(())
 }
