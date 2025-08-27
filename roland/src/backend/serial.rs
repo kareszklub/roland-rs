@@ -1,4 +1,5 @@
 use anyhow::anyhow;
+use cobs::{CobsDecoder, encode, encode_vec};
 use log::{debug, error, info, trace};
 use postcard::{from_bytes, to_stdvec};
 use serde::{Deserialize, Serialize};
@@ -47,33 +48,13 @@ pub enum SerialCMD {
     Reset(Vec<SerialCMD>),
 }
 
-/// try finding the pico device
-/// currently it returns the path for the first device named ttyACM*
-/// TODO: make this actually verify that the device is a pico
-async fn find_pico_path() -> anyhow::Result<String> {
-    let mut entries = fs::read_dir("/dev").await?;
-
-    while let Ok(Some(entry)) = entries.next_entry().await {
-        if let Some(name) = entry.file_name().to_str()
-            && name.starts_with("ttyACM")
-        {
-            return Ok(format!("/dev/{}", name));
-        }
-    }
-
-    Err(anyhow!("Pico not found"))
-}
-
 /// initialize serial communication with the Pico
 /// returns a clone-able Pico device
 pub async fn init(token: CancellationToken) -> anyhow::Result<Pico> {
     let (cmd_tx, cmd_rx) = mpsc::channel::<SerialCMD>(32);
     let (data_tx, data_rx) = broadcast::channel::<SerialData>(32);
 
-    let path = find_pico_path().await?;
-    let port = tokio_serial::new(&path, 115200).open_native_async()?;
-
-    info!("TTY-ACM port opened on {}", path);
+    let port = tokio_serial::new("/dev/serial0", 115200).open_native_async()?;
 
     let (reader, writer) = split(port);
 
@@ -108,21 +89,33 @@ async fn read_task(
     mut reader: ReadHalf<SerialStream>,
     data_tx: broadcast::Sender<SerialData>,
 ) -> anyhow::Result<()> {
-    let mut buf = vec![0u8; 64];
+    let mut cobs_buf = [0u8; 512];
+    let mut sm = CobsDecoder::new(&mut cobs_buf);
+    let mut read_buf = [0u8; 64];
     loop {
-        match reader.read(&mut buf).await? {
+        match reader.read(&mut read_buf).await? {
             0 => {
                 return Err(anyhow!("Serial port closed by peer"));
             }
-            n => match from_bytes::<SerialData>(&buf[..n]) {
-                Ok(data) => {
-                    if let Err(e) = data_tx.send(data.clone()) {
-                        error!("Couldn't send data: {}", e);
-                    } else {
-                        trace!("Received: {:?}", data)
+            n => match sm.push(&read_buf[..n]) {
+                Ok(None) => (),
+                Ok(Some(report)) => {
+                    match from_bytes::<SerialData>(&sm.dest()[..report.frame_size()]) {
+                        Ok(data) => {
+                            if let Err(e) = data_tx.send(data.clone()) {
+                                error!("Couldn't send data: {}", e);
+                            } else {
+                                trace!("Received: {:?}", data)
+                            }
+                        }
+                        Err(e) => error!(
+                            "Couldn't parse data({:?}): {}",
+                            &sm.dest()[..report.frame_size()],
+                            e
+                        ),
                     }
                 }
-                Err(e) => error!("Couldn't parse data({:?}): {}", &buf[..n], e),
+                Err(e) => error!("Couldn't decode data({:?}): {}", &read_buf[..n], e),
             },
         }
     }
@@ -143,7 +136,11 @@ async fn write_task(
         }
 
         let data = to_stdvec(&cmd).unwrap();
-        writer.write_all(&data).await?;
+
+        let mut data_cobs = cobs::encode_vec(&data);
+        data_cobs.push(0x00);
+
+        writer.write_all(&data_cobs).await?;
         trace!("Sent: {:?}", cmd);
     }
     Ok(())

@@ -21,6 +21,7 @@ async fn ultra_sensor_task(mut ultra: UltraSensor) {
     const MAX_DIST: u16 = 400;
 
     loop {
+        let mut done = false;
         let _ = with_timeout(Duration::from_millis(60), async {
             ultra.trig.set_high();
             Timer::after_micros(10).await;
@@ -41,10 +42,14 @@ async fn ultra_sensor_task(mut ultra: UltraSensor) {
             } else {
                 DATA.send(SerialData::UltraSensor(None)).await;
             }
+            done = true;
 
             Timer::after_millis(60).await;
         })
         .await;
+        if !done {
+            DATA.send(SerialData::UltraSensor(None)).await;
+        }
     }
 }
 

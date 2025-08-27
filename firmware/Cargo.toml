@@ -26,6 +26,7 @@ embassy-rp = { version = "0.7.0", features = [
 embassy-usb = "0.5.0"
 
 defmt-rtt = "1.0.0"
+embedded-io-async = { version = "0.6.1", features = ["defmt-03"] }
 panic-probe = { version = "1.0.0", features = ["print-defmt"] }
 
 postcard = "1.0.0"
@@ -35,6 +36,7 @@ cortex-m-rt = "0.7.0"
 log = "0.4"
 static_cell = "2.1.1"
 heapless = "0.8.0"
+cobs = { version = "0.4.0", default-features = false }
 
 [features]
 default = ["embassy-rp/binary-info"]

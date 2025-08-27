@@ -1,3 +1,5 @@
+use std::time::Instant;
+
 use log::{debug, error, info};
 use tokio_util::sync::CancellationToken;
 
@@ -7,10 +9,16 @@ mod backend;
 mod util;
 
 async fn main_task(mut r: Roland) -> anyhow::Result<()> {
-    tokio::select! {
-        ret = r.keep_distance(50) => ret?,
-        // ret = r.ultra_test() => ret?
-        // ret = r.follow_line(0.9) => ret?
+    // serial throughput test
+    let mut start = Instant::now();
+    for i in 1.. {
+        r.pico.set_buzzer(0).await?;
+        if i % 1000 == 0 {
+            let now = Instant::now();
+            let d = now - start;
+            start = now;
+            info!("{:>4}", 1000. / d.as_secs_f64());
+        }
     }
     Ok(())
 }

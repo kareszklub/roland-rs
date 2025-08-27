@@ -36,7 +36,9 @@ pub struct Hardware {
 impl Hardware {
     /// initialize all hardware from the given peripherals singleton
     pub async fn init(p: Peripherals, spawner: Spawner) {
-        spawner.spawn(serial_init(p.USB, spawner)).unwrap();
+        spawner
+            .spawn(serial_init(p.PIN_16, p.PIN_17, p.UART0, spawner))
+            .unwrap();
 
         let buzzer = Buzzer::new(Pwm::new_output_a(
             p.PWM_SLICE0,
