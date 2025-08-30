@@ -37,6 +37,7 @@ log = "0.4"
 static_cell = "2.1.1"
 heapless = "0.8.0"
 cobs = { version = "0.4.0", default-features = false }
+embassy-usb-logger = "0.5.1"
 
 [features]
 default = ["embassy-rp/binary-info"]

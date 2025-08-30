@@ -8,6 +8,7 @@ use crate::hardware::Hardware;
 
 mod drivers;
 mod hardware;
+mod log;
 mod serial;
 
 // firmware metadata

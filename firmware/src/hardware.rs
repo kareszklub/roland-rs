@@ -9,6 +9,7 @@ use crate::{
         buzzer::Buzzer, h_bridge::HBridge, rgb_led::RGBLed, servo::Servo,
         track_sensor::TrackSensor, ultra_sensor::UltraSensor,
     },
+    log::logger_task,
     serial::{serial_init, SerialCMD, CMD},
 };
 
@@ -21,6 +22,12 @@ async fn hardware_task(mut hw: Hardware) {
             SerialCMD::LED((r, g, b)) => hw.led.set_color(r, g, b),
             SerialCMD::Servo(deg) => hw.servo.deg(deg),
             SerialCMD::HBridge((l_speed, r_speed)) => hw.hb.drive(l_speed, r_speed),
+            SerialCMD::Reset => {
+                hw.buzzer.freq(0);
+                hw.led.set_color(0, 0, 0);
+                hw.servo.deg(0);
+                hw.hb.drive(0, 0);
+            }
         }
     }
 }
@@ -39,6 +46,8 @@ impl Hardware {
         spawner
             .spawn(serial_init(p.PIN_16, p.PIN_17, p.UART0, spawner))
             .unwrap();
+
+        spawner.spawn(logger_task(p.USB)).unwrap();
 
         let buzzer = Buzzer::new(Pwm::new_output_a(
             p.PWM_SLICE0,
