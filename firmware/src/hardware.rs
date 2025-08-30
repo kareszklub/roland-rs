@@ -69,10 +69,10 @@ impl Hardware {
         );
 
         let hb = HBridge::new(
-            p.PIN_10,
-            p.PIN_11,
-            p.PIN_12,
             p.PIN_13,
+            p.PIN_12,
+            p.PIN_11,
+            p.PIN_10,
             Pwm::new_output_ab(p.PWM_SLICE7, p.PIN_14, p.PIN_15, pwm::Config::default()),
             2000,
         );

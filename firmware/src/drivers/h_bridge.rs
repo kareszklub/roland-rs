@@ -40,16 +40,16 @@ impl<'a> HBridge<'a> {
         let l = l.clamp(-0xffff, 0xffff);
         let r = r.clamp(-0xffff, 0xffff);
 
-        self.pwm.set_duty_a(l.unsigned_abs() as u16);
-        self.pwm.set_duty_b(r.unsigned_abs() as u16);
+        self.pwm.set_duty_b(l.unsigned_abs() as u16);
+        self.pwm.set_duty_a(r.unsigned_abs() as u16);
 
         self.l1
-            .set_level(if l < 0 { Level::High } else { Level::Low });
-        self.l2
             .set_level(if l > 0 { Level::High } else { Level::Low });
+        self.l2
+            .set_level(if l < 0 { Level::High } else { Level::Low });
         self.r1
-            .set_level(if r < 0 { Level::High } else { Level::Low });
-        self.r2
             .set_level(if r > 0 { Level::High } else { Level::Low });
+        self.r2
+            .set_level(if r < 0 { Level::High } else { Level::Low });
     }
 }
