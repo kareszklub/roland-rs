@@ -36,16 +36,11 @@ impl Pico {
             let sensor_data = sensor_data.clone();
             tokio::spawn(async move {
                 tokio::select! {
-                    ret = Self::data_task(data_rx, sensor_data) => {
-                        match ret {
-                            Ok(()) => debug!("[Pico Data] task shutting down"),
-                            Err(e) => error!("[Pico Data] task shutting down: {}",e),
-                        }
-                        token.cancel();
+                    ret = Self::data_task(data_rx, sensor_data) => match ret {
+                        Ok(()) => debug!("[Pico] task shutting down"),
+                        Err(e) => error!("[Pico] task shutting down: {}", e),
                     },
-                    _ = token.cancelled() => {
-                        info!("Pico task shutting down");
-                    }
+                    _ = token.cancelled() => {},
                 };
             });
         }
@@ -82,20 +77,11 @@ impl Pico {
     }
 
     /// Reset all hardware peripherals to a neutral state
-    /// WARN: calling this function causes the serial to close
-    ///
     ///
     /// this should be called before terminating the program, in avoidance of some very serious
     /// consequences (RIP camera holder, you won't be forgotten)
     pub async fn reset(&mut self) -> anyhow::Result<()> {
-        self.cmd_tx
-            .send(SerialCMD::Reset(vec![
-                SerialCMD::Buzzer(0),
-                SerialCMD::LED((0, 0, 0)),
-                SerialCMD::Servo(0),
-                SerialCMD::HBridge((0, 0)),
-            ]))
-            .await?;
+        self.cmd_tx.send(SerialCMD::Reset).await?;
         Ok(())
     }
 

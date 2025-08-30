@@ -1,10 +1,9 @@
 use anyhow::anyhow;
-use cobs::{CobsDecoder, encode, encode_vec};
-use log::{debug, error, info, trace};
+use cobs::CobsDecoder;
+use log::{debug, error, trace};
 use postcard::{from_bytes, to_stdvec};
 use serde::{Deserialize, Serialize};
 use tokio::{
-    fs,
     io::{AsyncReadExt, AsyncWriteExt, ReadHalf, WriteHalf, split},
     sync::{broadcast, mpsc},
 };
@@ -22,7 +21,6 @@ pub enum TrackSensorID {
 }
 
 /// data packet coming from the pico
-/// currently it's only used for sensor data
 #[derive(Deserialize, Debug, Clone)]
 pub enum SerialData {
     /// measured distance in cm
@@ -42,10 +40,7 @@ pub enum SerialCMD {
     Servo(i8),
     /// duty cycle (sign is direction)
     HBridge((i32, i32)),
-    /// this variant only exists on the pi side
-    /// upon receiving this message, all commands defined listed in it will get sent, and the serial is
-    /// closed
-    Reset(Vec<SerialCMD>),
+    Reset,
 }
 
 /// initialize serial communication with the Pico
@@ -127,21 +122,18 @@ async fn write_task(
     mut cmd_rx: mpsc::Receiver<SerialCMD>,
 ) -> anyhow::Result<()> {
     while let Some(cmd) = cmd_rx.recv().await {
-        if let SerialCMD::Reset(cmds) = cmd {
-            for cmd in cmds {
-                let data = to_stdvec(&cmd).unwrap();
-                writer.write_all(&data).await?;
-            }
-            break;
-        }
-
         let data = to_stdvec(&cmd).unwrap();
 
         let mut data_cobs = cobs::encode_vec(&data);
         data_cobs.push(0x00);
 
         writer.write_all(&data_cobs).await?;
+        // sleep(Duration::from_micros(1)).await;
         trace!("Sent: {:?}", cmd);
+
+        if let SerialCMD::Reset = cmd {
+            break;
+        }
     }
     Ok(())
 }
