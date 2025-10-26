@@ -111,7 +111,7 @@ impl Roland {
     }
 
     pub async fn follow_line(&mut self, speed: f64) -> anyhow::Result<()> {
-        #[derive(Debug)]
+        #[derive(Debug, PartialEq, Clone)]
         enum TrackState {
             OnLine,
             HalfLeft,
@@ -121,19 +121,18 @@ impl Roland {
             Unknown,
         }
 
-        let mut state = TrackState::Unknown;
-        let mut last_speed = None;
+        let mut last_state = TrackState::Unknown;
 
         let mut track_rx = self.pico.subscribe_track();
 
         loop {
             let [a, _b, c, _d] = *track_rx.borrow_and_update();
 
-            state = match (a, c) {
+            let state = match (a, c) {
                 (false, false) => TrackState::OnLine,
                 (false, true) => TrackState::HalfRight,
                 (true, false) => TrackState::HalfLeft,
-                (true, true) => match state {
+                (true, true) => match last_state {
                     TrackState::OnLine => TrackState::Unknown,
                     TrackState::HalfLeft => TrackState::Left,
                     TrackState::HalfRight => TrackState::Right,
@@ -143,22 +142,20 @@ impl Roland {
                 },
             };
 
-            let (left, right) = match state {
-                TrackState::OnLine => (0.9, 0.9),
-                TrackState::HalfLeft => (1.0, 0.75),
-                TrackState::HalfRight => (0.75, 1.0),
-                TrackState::Left => (1.0, -0.75),
-                TrackState::Right => (-0.75, 1.0),
-                TrackState::Unknown => (0.0, 0.0),
-            };
+            if last_state != state {
+                let (left, right) = match state {
+                    TrackState::OnLine => (0.9, 0.9),
+                    TrackState::HalfLeft => (1.0, 0.75),
+                    TrackState::HalfRight => (0.75, 1.0),
+                    TrackState::Left => (1.0, -0.75),
+                    TrackState::Right => (-0.75, 1.0),
+                    TrackState::Unknown => (0.0, 0.0),
+                };
 
-            let (left, right) = (
-                (0xffff as f64 * left * speed) as i32,
-                (0xffff as f64 * right * speed) as i32,
-            );
-
-            if last_speed != Some((left, right)) {
-                last_speed = Some((left, right));
+                let (left, right) = (
+                    (0xffff as f64 * left * speed) as i32,
+                    (0xffff as f64 * right * speed) as i32,
+                );
 
                 let (r, g, b) = match state {
                     TrackState::OnLine => (0, 255, 0),
@@ -169,10 +166,12 @@ impl Roland {
                     TrackState::Unknown => (255, 255, 255),
                 };
 
-                self.pico.set_motor(right, left).await?;
+                self.pico.set_motor(left, right).await?;
                 self.pico.set_led(r, g, b).await?;
 
                 info!("{:?}", state);
+
+                last_state = state;
             }
 
             track_rx.changed().await?;
