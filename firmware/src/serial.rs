@@ -126,5 +126,7 @@ async fn serial_write_task(mut tx: BufferedUartTx) {
         let len = cobs::encode(&data, &mut cobs_buf);
         cobs_buf[len] = 0x00;
         let _ = tx.write_all(&cobs_buf[..=len]).await;
+        // FIXME: this is NOT the way to fix packet loss, may god forgive me
+        let _ = tx.write_all(&cobs_buf[..=len]).await;
     }
 }
