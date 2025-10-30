@@ -5,27 +5,18 @@
 	import ArrowLeftToLine from '@lucide/svelte/icons/arrow-left-to-line';
 	import { roland_state, handle_control_state } from './controller/controller.svelte';
 	import { buttonVariants } from '$lib/components/ui/button';
-	import { MediaQuery } from 'svelte/reactivity';
-	import * as RadioGroup from '$lib/components/ui/radio-group/index.js';
-	import { Label } from '$lib/components/ui/label';
+	import * as Tabs from '$lib/components/ui/tabs/index.js';
 </script>
 
 <div class="flex flex-col items-center space-y-4">
 	<div class="mb-8">
-		<RadioGroup.Root bind:value={roland_state.control_state} onValueChange={handle_control_state}>
-			<div class="flex items-center space-x-2">
-				<RadioGroup.Item value="FollowLine" id="r1" />
-				<Label for="r1">Follow line</Label>
-			</div>
-			<div class="flex items-center space-x-2">
-				<RadioGroup.Item value="ManualControl" id="r2" />
-				<Label for="r2">Manual control</Label>
-			</div>
-			<div class="flex items-center space-x-2">
-				<RadioGroup.Item value="KeepDistance" id="r3" />
-				<Label for="r3">Keep distance</Label>
-			</div>
-		</RadioGroup.Root>
+		<Tabs.Root bind:value={roland_state.control_state}>
+			<Tabs.List>
+				<Tabs.Trigger value="FollowLine"><RouteIcon />Follow line</Tabs.Trigger>
+				<Tabs.Trigger value="ManualControl"><JoystickIcon />Manual control</Tabs.Trigger>
+				<Tabs.Trigger value="KeepDistance"><ArrowLeftToLine />Keep distance</Tabs.Trigger>
+			</Tabs.List>
+		</Tabs.Root>
 	</div>
 
 	<div class="flex items-center space-x-2">
@@ -41,11 +32,17 @@
 	</div>
 
 	<div class="flex space-x-1">
-		{#each roland_state.track_sensor as off}
-			<div
-				class="{buttonVariants({ variant: 'outline' })} h-13 w-13"
-				style="background-color: {off ? 'white' : 'blue'};"
-			></div>
-		{/each}
+		{#if roland_state.track_sensor}
+			{#each roland_state.track_sensor as off}
+				<div
+					class="{buttonVariants({ variant: 'outline' })} h-13 w-13"
+					style="background-color: {off ? 'white' : 'blue'};"
+				></div>
+			{/each}
+		{:else}
+			{#each new Array(4) as _}
+				<div class="{buttonVariants({ variant: 'outline' })} h-13 w-13"></div>
+			{/each}
+		{/if}
 	</div>
 </div>

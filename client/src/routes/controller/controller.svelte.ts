@@ -12,7 +12,7 @@ export const roland_state: RolandState = $state({
     buzzer_freq: 440,
     led: { r: 0, g: 0, b: 0 },
     control_state: 'ManualControl',
-    track_sensor: [false, false, false, false],
+    track_sensor: null,
     ultra_sensor: null,
 });
 
@@ -33,7 +33,7 @@ type RolandState = {
     buzzer_freq: number,
     led: RGB,
     control_state: ControlState,
-    track_sensor: [boolean, boolean, boolean, boolean],
+    track_sensor: [boolean, boolean, boolean, boolean] | null,
     ultra_sensor: number | null,
 };
 
