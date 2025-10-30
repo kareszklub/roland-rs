@@ -63,9 +63,11 @@ impl Pico {
                 SerialData::TrackSensor((id, val)) => {
                     let mut current = *sensor_data.track_sensor.borrow();
 
+                    // TODO: the track sensor ids are a bit goofy, this need some further
+                    // investigation
                     current[match id {
-                        TrackSensorID::L1 => 0,
-                        TrackSensorID::L2 => 1,
+                        TrackSensorID::L1 => 1,
+                        TrackSensorID::L2 => 0,
                         TrackSensorID::R1 => 2,
                         TrackSensorID::R2 => 3,
                     }] = val;
@@ -82,6 +84,17 @@ impl Pico {
     /// consequences (RIP camera holder, you won't be forgotten)
     pub async fn reset(&mut self) -> anyhow::Result<()> {
         self.cmd_tx.send(SerialCMD::Reset).await?;
+        Ok(())
+    }
+
+    /// Reset all hardware peripherals to a neutral state
+    ///
+    /// this does not initiate a shutdown sequence
+    pub async fn soft_reset(&mut self) -> anyhow::Result<()> {
+        self.set_buzzer(0).await?;
+        self.set_led(0, 0, 0).await?;
+        self.set_servo(0).await?;
+        self.set_motor(0, 0).await?;
         Ok(())
     }
 

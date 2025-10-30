@@ -5,7 +5,8 @@
 		roland_state,
 		handle_servo,
 		handle_buzzer,
-		handle_led
+		handle_led,
+		handle_control_state
 	} from './controller.svelte';
 	import Button, { buttonVariants } from '$lib/components/ui/button/button.svelte';
 	import { Slider } from '$lib/components/ui/slider/index.js';
@@ -15,6 +16,7 @@
 	import LightbulbIcon from '@lucide/svelte/icons/lightbulb';
 	import LightbulbOffIcon from '@lucide/svelte/icons/lightbulb-off';
 	import * as Dialog from '$lib/components/ui/dialog/index.js';
+	import { onMount } from 'svelte';
 
 	const on_key_down = (e: KeyboardEvent) => {
 		if (e.repeat) return;
@@ -37,6 +39,11 @@
 				? 'black'
 				: 'white')()
 	);
+
+	onMount(() => {
+		roland_state.control_state = 'ManualControl';
+		handle_control_state();
+	});
 </script>
 
 <svelte:window
@@ -105,7 +112,7 @@
 				bind:value={roland_state.servo_angle}
 				max={180}
 				step={10}
-				onValueCommit={handle_servo}
+				onValueChange={handle_servo}
 			/>
 		</div>
 		<div class="flex flex-col items-center space-y-2"></div>
@@ -184,7 +191,7 @@
 							max={255}
 							step={15}
 							class="w-30"
-							onValueCommit={handle_led}
+							onValueChange={handle_led}
 						/>
 					</div>
 					<div class="flex space-x-2">
@@ -196,7 +203,7 @@
 							max={255}
 							step={15}
 							class="w-30"
-							onValueCommit={handle_led}
+							onValueChange={handle_led}
 						/>
 					</div>
 					<div class="flex space-x-2">
@@ -208,7 +215,7 @@
 							max={255}
 							step={15}
 							class="w-30"
-							onValueCommit={handle_led}
+							onValueChange={handle_led}
 						/>
 					</div>
 				</Dialog.Content>

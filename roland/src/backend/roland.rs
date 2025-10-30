@@ -126,9 +126,9 @@ impl Roland {
         let mut track_rx = self.pico.subscribe_track();
 
         loop {
-            let [a, _b, c, _d] = *track_rx.borrow_and_update();
+            let [_a, b, c, _d] = *track_rx.borrow_and_update();
 
-            let state = match (a, c) {
+            let state = match (b, c) {
                 (false, false) => TrackState::OnLine,
                 (false, true) => TrackState::HalfRight,
                 (true, false) => TrackState::HalfLeft,

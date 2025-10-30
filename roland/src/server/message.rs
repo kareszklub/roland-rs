@@ -11,12 +11,24 @@ pub enum ClientMessage {
     Servo(i8),
     /// Motor duty cycle (-1 to 1)
     Motor((f32, f32)),
-    FollowLine,
+    /// IE manual-control, follow-line, keep-distance
+    ControlState(String),
 }
 
 /// This is the message Roland can send to a client
-#[derive(Debug, Serialize)]
+#[derive(Serialize, Debug)]
+#[serde(untagged)]
 pub enum ServerMessage {
-    /// This is self-explanatory, Roland is NOT a chill dude
-    GoFuckYourself,
+    Text {
+        #[serde(rename = "Text")]
+        text: String,
+    },
+    Ultra {
+        #[serde(rename = "Ultra")]
+        ultra: Option<u16>,
+    },
+    Track {
+        #[serde(rename = "Track")]
+        track: [bool; 4],
+    },
 }

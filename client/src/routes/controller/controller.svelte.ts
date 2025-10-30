@@ -1,4 +1,4 @@
-import { ws_send_command } from '$lib/ws.svelte';
+import { ws_send_command, type ControlState } from '$lib/ws.svelte';
 import { clamp } from '$lib/utils';
 import { append_log, LogLevel } from '$lib/logs.svelte';
 
@@ -11,11 +11,19 @@ export const roland_state: RolandState = $state({
     servo_angle: 90,
     buzzer_freq: 440,
     led: { r: 0, g: 0, b: 0 },
+    control_state: 'ManualControl',
+    track_sensor: [false, false, false, false],
+    ultra_sensor: null,
 });
+
+export const handle_control_state = () => {
+    ws_send_command({ ControlState: roland_state.control_state });
+};
 
 export const on_key_change = () => {
     handle_wasd();
 };
+
 
 type RolandState = {
     speed_multiplier: number,
@@ -24,6 +32,9 @@ type RolandState = {
     servo_angle: number,
     buzzer_freq: number,
     led: RGB,
+    control_state: ControlState,
+    track_sensor: [boolean, boolean, boolean, boolean],
+    ultra_sensor: number | null,
 };
 
 export type RGB = {
@@ -94,5 +105,7 @@ export const send_local_settings = () => {
     let right = roland_state.right_speed_normal * roland_state.speed_multiplier;
     ws_send_command({ Motor: [left, right] });
 
-    append_log(LogLevel.Trace, "Send over local settings");
+    handle_control_state();
+
+    append_log(LogLevel.Trace, "Sent over local settings");
 };

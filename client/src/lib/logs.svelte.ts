@@ -38,5 +38,8 @@ const format_log = (level: LogLevel, text: string) => {
 
 export const append_log = (level: LogLevel, text: string) => {
     logs.unshift(format_log(level, text));
+    if (logs.length > 256) {
+        logs.pop();
+    }
 };
 
