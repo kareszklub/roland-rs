@@ -16,10 +16,8 @@
 
 <Sidebar.Provider>
 	<AppSidebar />
-	<main class="w-full">
-		<Sidebar.Trigger class="size-13" />
-		<div class="p-3">
-			{@render children?.()}
-		</div>
+	<main class="flex w-full flex-col space-y-2 p-3">
+		<Sidebar.Trigger />
+		{@render children?.()}
 	</main>
 </Sidebar.Provider>
