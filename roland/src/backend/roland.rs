@@ -94,7 +94,7 @@ impl Roland {
 
     pub async fn keep_distance(&mut self, sp: u16) -> anyhow::Result<()> {
         let mut ultra_rx = self.pico.subscribe_ultra();
-        let mut pid = PID::new(500., 100., 1., -5., 5., sp as f64);
+        let mut pid = PID::new(500., 10., 0., -5., 5., sp as f64);
 
         loop {
             let pv = (*ultra_rx.borrow_and_update()).unwrap_or(sp);
