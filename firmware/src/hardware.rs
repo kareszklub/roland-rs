@@ -9,7 +9,7 @@ use crate::{
         buzzer::Buzzer, h_bridge::HBridge, rgb_led::RGBLed, servo::Servo,
         track_sensor::TrackSensor, ultra_sensor::UltraSensor,
     },
-    log::logger_task,
+    // log::logger_task,
     serial::{serial_init, SerialCMD, CMD},
 };
 
@@ -43,11 +43,9 @@ pub struct Hardware {
 impl Hardware {
     /// initialize all hardware from the given peripherals singleton
     pub async fn init(p: Peripherals, spawner: Spawner) {
-        spawner
-            .spawn(serial_init(p.PIN_16, p.PIN_17, p.UART0, spawner))
-            .unwrap();
+        spawner.spawn(serial_init(p.USB, spawner)).unwrap();
 
-        spawner.spawn(logger_task(p.USB)).unwrap();
+        // spawner.spawn(logger_task(p.USB)).unwrap();
 
         let buzzer = Buzzer::new(Pwm::new_output_a(
             p.PWM_SLICE0,

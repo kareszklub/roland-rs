@@ -1,23 +1,19 @@
-use cobs::CobsDecoder;
 use embassy_executor::Spawner;
-use embassy_rp::peripherals::{PIN_16, PIN_17, UART0};
-use embassy_rp::uart::{
-    BufferedInterruptHandler, BufferedUart, BufferedUartRx, BufferedUartTx, Config,
-};
+use embassy_rp::peripherals::USB;
+use embassy_rp::usb::{Driver, InterruptHandler};
 use embassy_rp::{bind_interrupts, Peri};
 use embassy_sync::blocking_mutex::raw::ThreadModeRawMutex;
 use embassy_sync::channel::Channel;
-use embedded_io_async::{BufRead, Read, Write};
-use log::debug;
+use embassy_usb::class::cdc_acm::{CdcAcmClass, Receiver, Sender, State};
+use embassy_usb::UsbDevice;
 use postcard::{from_bytes, to_slice};
 use serde::{Deserialize, Serialize};
 use static_cell::StaticCell;
-use {defmt_rtt as _, panic_probe as _};
 
 use crate::drivers::track_sensor::TrackSensorID;
 
-bind_interrupts!(struct Irqs {
-    UART0_IRQ => BufferedInterruptHandler<UART0>;
+bind_interrupts!(pub struct Irqs {
+    USBCTRL_IRQ => InterruptHandler<USB>;
 });
 
 /// pico -> pi
@@ -40,6 +36,7 @@ pub enum SerialCMD {
     Servo(i8),
     /// duty cycle (sign is direction)
     HBridge((i32, i32)),
+    /// Reset the hardware peripherals to a neutral (known) state
     Reset,
 }
 
@@ -49,84 +46,77 @@ pub static CMD: Channel<ThreadModeRawMutex, SerialCMD, 64> = Channel::new();
 /// channel for outgoing messages
 pub static DATA: Channel<ThreadModeRawMutex, SerialData, 64> = Channel::new();
 
-static BUF_SIZE: usize = 4096;
-
 #[embassy_executor::task]
-pub async fn serial_init(
-    tx_pin: Peri<'static, PIN_16>,
-    rx_pin: Peri<'static, PIN_17>,
-    uart: Peri<'static, UART0>,
-    spawner: Spawner,
-) {
-    static TX_BUF: StaticCell<[u8; BUF_SIZE]> = StaticCell::new();
-    let tx_buf = &mut TX_BUF.init([0; BUF_SIZE])[..];
-    static RX_BUF: StaticCell<[u8; BUF_SIZE]> = StaticCell::new();
-    let rx_buf = &mut RX_BUF.init([0; BUF_SIZE])[..];
-
-    let mut config = Config::default();
-    config.baudrate = 115200;
-    let uart = BufferedUart::new(uart, tx_pin, rx_pin, Irqs, tx_buf, rx_buf, config);
-
-    let (tx, rx) = uart.split();
-
-    spawner.spawn(serial_write_task(tx)).unwrap();
-    spawner.spawn(serial_read_task(rx)).unwrap();
+async fn usb_task(mut usb: UsbDevice<'static, Driver<'static, USB>>) -> ! {
+    usb.run().await
 }
 
 #[embassy_executor::task]
-async fn serial_read_task(mut rx: BufferedUartRx) {
-    let mut cobs_buf = [0u8; BUF_SIZE];
-    let mut sm = CobsDecoder::new(&mut cobs_buf);
-    let mut read_buf = [0u8; BUF_SIZE];
+async fn usb_read_task(mut rx: Receiver<'static, Driver<'static, USB>>) {
+    let mut buf = [0u8; 64];
 
     loop {
-        match rx.read(&mut read_buf).await {
-            Ok(n) => {
-                let mut consumed: usize = 0;
-
-                while consumed < n {
-                    match sm.push(&read_buf[consumed..n]) {
-                        Ok(Some(report)) => {
-                            let data = &sm.dest()[..report.frame_size()];
-
-                            match from_bytes::<SerialCMD>(data) {
-                                Ok(cmd) => {
-                                    CMD.send(cmd).await;
-                                }
-                                Err(e) => debug!("Error deserializing CMD: {:?}", e),
-                            }
-
-                            consumed += report.parsed_size();
-                        }
-                        Ok(None) => consumed = n,
-                        Err(e) => {
-                            debug!("Error pushing to state machine: {:?}", e);
-                            consumed = n;
-                        }
-                    }
-                }
+        if let Ok(n) = rx.read_packet(&mut buf).await {
+            if let Ok(cmd) = from_bytes::<SerialCMD>(&buf[..n]) {
+                CMD.send(cmd).await;
             }
-            Err(e) => debug!("Error reading rx buffer: {:?}", e),
         }
     }
 }
 
 #[embassy_executor::task]
-async fn serial_write_task(mut tx: BufferedUartTx) {
-    let mut cobs_buf = [0u8; 64];
-    let mut write_buf = [0u8; 64];
+async fn usb_write_task(mut tx: Sender<'static, Driver<'static, USB>>) {
+    let mut buf = [0u8; 64];
 
     loop {
         let data = DATA.receive().await;
-
-        // debug!("Sent Data: {:?}", data);
-
-        let data = to_slice(&data, &mut write_buf).unwrap();
-
-        let len = cobs::encode(&data, &mut cobs_buf);
-        cobs_buf[len] = 0x00;
-        let _ = tx.write_all(&cobs_buf[..=len]).await;
-        // FIXME: this is NOT the way to fix packet loss, may god forgive me
-        let _ = tx.write_all(&cobs_buf[..=len]).await;
+        let _ = tx.write_packet(to_slice(&data, &mut buf).unwrap()).await;
     }
+}
+
+#[embassy_executor::task]
+pub async fn serial_init(peri_usb: Peri<'static, USB>, spawner: Spawner) {
+    let driver = Driver::new(peri_usb, Irqs);
+
+    let config = {
+        let mut config = embassy_usb::Config::new(0xc0de, 0xcafe);
+        config.manufacturer = Some("Kareszklub");
+        config.product = Some("Roland uC firmware");
+        config.max_power = 100;
+        config.max_packet_size_0 = 64;
+        config
+    };
+
+    let mut builder = {
+        static CONFIG_DESCRIPTOR: StaticCell<[u8; 256]> = StaticCell::new();
+        static BOS_DESCRIPTOR: StaticCell<[u8; 256]> = StaticCell::new();
+        static CONTROL_BUF: StaticCell<[u8; 64]> = StaticCell::new();
+
+        let builder = embassy_usb::Builder::new(
+            driver,
+            config,
+            CONFIG_DESCRIPTOR.init([0; 256]),
+            BOS_DESCRIPTOR.init([0; 256]),
+            &mut [], // no msos descriptors
+            CONTROL_BUF.init([0; 64]),
+        );
+        builder
+    };
+
+    let mut class = {
+        static STATE: StaticCell<State> = StaticCell::new();
+        let state = STATE.init(State::new());
+        CdcAcmClass::new(&mut builder, state, 64)
+    };
+
+    let usb = builder.build();
+
+    // run the USB task
+    spawner.spawn(usb_task(usb)).unwrap();
+
+    class.wait_connection().await;
+    let (tx, rx) = class.split();
+
+    spawner.spawn(usb_read_task(rx)).unwrap();
+    spawner.spawn(usb_write_task(tx)).unwrap();
 }

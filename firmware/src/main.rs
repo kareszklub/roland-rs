@@ -2,9 +2,13 @@
 #![no_main]
 
 use embassy_executor::Spawner;
+use embassy_time::Timer;
 use {defmt_rtt as _, panic_probe as _};
 
-use crate::hardware::Hardware;
+use crate::{
+    hardware::Hardware,
+    serial::{SerialData, DATA},
+};
 
 mod drivers;
 mod hardware;
