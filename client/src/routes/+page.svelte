@@ -10,7 +10,7 @@
 
 <div class="flex flex-col items-center space-y-4">
 	<div class="mb-8">
-		<Tabs.Root bind:value={roland_state.control_state}>
+		<Tabs.Root bind:value={roland_state.control_state} onValueChange={handle_control_state}>
 			<Tabs.List>
 				<Tabs.Trigger value="FollowLine"><RouteIcon />Follow line</Tabs.Trigger>
 				<Tabs.Trigger value="ManualControl"><JoystickIcon />Manual control</Tabs.Trigger>
