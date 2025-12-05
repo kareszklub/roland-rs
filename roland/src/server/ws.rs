@@ -211,26 +211,22 @@ impl Server {
             return Ok(());
         }
         self.state = new_state;
+        if let Some(cancel) = self.auto_cancel.clone() {
+            cancel.cancel();
+        }
         match self.state {
             ControlState::ManualControl => {
-                self.auto_cancel
-                    .clone()
-                    .expect(
-                        "If the device is switching back to manual control, it should have a token.",
-                    )
-                    .cancel();
                 self.auto_cancel = None;
                 self.roland.pico.soft_reset().await?;
             }
             ControlState::FollowLine => {
-                assert!(self.auto_cancel.is_none());
                 let token = CancellationToken::new();
                 self.auto_cancel = Some(token.clone());
 
                 let mut r = self.roland.clone();
                 tokio::spawn(async move {
                     tokio::select! {
-                        ret = r.follow_line(0.8) => {
+                        ret = r.follow_line(0.7) => {
                             match ret {
                                 Ok(()) => (),
                                 Err(e) => error!("[Line Follower] error: {}", e),
@@ -241,7 +237,6 @@ impl Server {
                 });
             }
             ControlState::KeepDistance => {
-                assert!(self.auto_cancel.is_none());
                 let token = CancellationToken::new();
                 self.auto_cancel = Some(token.clone());
 
