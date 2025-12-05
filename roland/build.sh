@@ -1,7 +1,7 @@
 #!/bin/bash
 
 PI_USER=roland
-PI_HOST=10.93.154.4
+PI_HOST=172.26.246.4
 BUILD_TARGET=aarch64-unknown-linux-gnu
 
 set -e
