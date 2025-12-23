@@ -1,7 +1,7 @@
 #!/bin/bash
 
 PI_USER=roland
-PI_HOST=172.26.246.4
+PI_HOST=$(avahi-resolve -4n roland.local 2>/dev/null | awk '{print $2}')
 BUILD_TARGET=aarch64-unknown-linux-gnu
 
 set -e
