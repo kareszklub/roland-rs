@@ -1,7 +1,8 @@
+import { env } from '$env/dynamic/public';
 import { roland_state, send_local_settings } from "../routes/controller/controller.svelte";
 import { append_log, LogLevel } from "./logs.svelte";
 
-export let roland = $state({ ip: "172.24.194.4", connection: "disconnected" });
+export let roland = $state({ ip: env.PUBLIC_ROLAND_IP, connection: "disconnected" });
 
 type BuzzerCommand = {
     Buzzer: number;
