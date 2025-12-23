@@ -1,16 +1,14 @@
 use log::{debug, error, info};
 use tokio_util::sync::CancellationToken;
 
-use crate::backend::roland::Roland;
+use crate::{backend::roland::Roland, server::ws::Server};
 
 mod backend;
 mod server;
 mod util;
 
 async fn main_task(r: Roland) -> anyhow::Result<()> {
-    r.ultra_test().await
-    // let mut server = Server::new(r);
-    // server.run().await
+    Server::new(r).run().await
 }
 
 #[tokio::main]
