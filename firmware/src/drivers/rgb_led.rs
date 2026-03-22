@@ -2,7 +2,7 @@ use embassy_rp::pwm::Pwm;
 
 use crate::drivers::pwm::PWM;
 
-/// common anode RGB LED
+/// common cathode RGB LED
 pub struct RGBLed<'a> {
     pub rg_pwm: PWM<'a>,
     pub b_pwm: PWM<'a>,
